@@ -1,0 +1,42 @@
+"""
+Constantes de configuração do HUD Waveform Visualizer — SARA
+Cores, geometria, parâmetros de animação e análise de áudio.
+"""
+
+# === Cores (R, G, B) ===
+CYAN_PRIMARY = (0, 255, 255)
+CYAN_DIM = (0, 180, 255)
+BLUE_DEEP = (0, 100, 200)
+GREEN_LISTEN = (50, 255, 150)
+AMBER_PROCESS = (255, 200, 0)
+
+# === Geometria ===
+DEFAULT_HUD_SIZE = 220
+NUM_BARS = 16
+BAR_WIDTH = 4
+BAR_ARC_DEGREES = 140
+BAR_INNER_RADIUS = 30
+BAR_MAX_HEIGHT = 45
+CENTER_OFFSET_Y = 15
+ORB_BASE_RADIUS = 18
+ORB_AMPLITUDE_SCALE = 8
+CORNER_MARGIN = 20
+BRACKET_LENGTH = 18
+RING_RADIUS = 55
+
+# === Animação ===
+TARGET_FPS = 30
+FRAME_INTERVAL_MS = 33
+BREATH_SPEED = 0.05
+BREATH_MIN = 0.2
+BREATH_MAX = 0.5
+BAR_SMOOTHING = 0.3
+IDLE_BAR_MIN = 0.02
+IDLE_BAR_MAX = 0.07
+LISTEN_BAR_MIN = 0.10
+LISTEN_BAR_MAX = 0.25
+RING_ROTATION_SPEED = 0.5
+
+# === Análise de Áudio ===
+AUDIO_FPS = 30
+AMPLITUDE_NORMALIZE = 16384.0

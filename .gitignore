@@ -1,0 +1,14 @@
+.env
+.env.*
+!.env.example
+__pycache__/
+*.pyc
+.venv/
+venv/
+data/
+dist/
+build/
+*.spec
+.vscode/
+.idea/
+DEVELOPMENT_PROMPT.md

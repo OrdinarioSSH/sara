@@ -1,0 +1,22 @@
+# Pet Assistant - Dependências
+
+# Interface (PyQt6)
+PyQt6>=6.4.0
+pillow>=10.0.0
+
+# AI (Groq - GRATUITO!)
+groq>=0.4.0
+
+# Text-to-Speech (Vozes neurais)
+edge-tts>=6.1.0
+pygame>=2.5.0
+
+# Speech-to-Text
+SpeechRecognition>=3.10.0
+pyaudio>=0.2.14
+
+# Utilitários
+python-dotenv>=1.0.0
+
+# Para criar executável
+pyinstaller>=6.0.0
