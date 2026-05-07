@@ -1,19 +1,17 @@
 """
 Text-to-speech adapter for SARA.
 
-Default provider: Qwen TTS through Alibaba Cloud Model Studio / DashScope.
-Fallback provider: Microsoft Edge TTS, kept as a local compatibility option.
+Default provider: Piper TTS running locally.
+Fallback provider: Microsoft Edge TTS, kept as a compatibility option.
 """
 from __future__ import annotations
 
 import asyncio
 import os
+import subprocess
 import tempfile
 import threading
-import urllib.request
 import uuid
-from pathlib import Path
-from typing import Any
 
 try:
     import edge_tts
@@ -38,43 +36,13 @@ EDGE_VOICES = {
     "donato": "pt-BR-DonatoNeural",
 }
 
-QWEN_VOICES = {
-    "cherry": "Cherry",
-    "seren": "Seren",
-    "mia": "Mia",
-    "stella": "Stella",
-    "neil": "Neil",
-    "kai": "Kai",
-    "ryan": "Ryan",
-    "andre": "Andre",
+PIPER_VOICES = {
+    "piper": "local",
 }
 
 
 def _env(name: str, default: str = "") -> str:
     return os.getenv(name, default).strip()
-
-
-def _get_nested(value: Any, *keys: str) -> Any:
-    current = value
-    for key in keys:
-        if current is None:
-            return None
-        if isinstance(current, dict):
-            current = current.get(key)
-        else:
-            current = getattr(current, key, None)
-    return current
-
-
-def _normalize_qwen_voice(voice: str | None) -> str:
-    if not voice:
-        return _env("QWEN_TTS_VOICE", "Cherry")
-
-    voice = voice.strip()
-    if voice in QWEN_VOICES.values():
-        return voice
-
-    return QWEN_VOICES.get(voice.lower(), _env("QWEN_TTS_VOICE", "Cherry"))
 
 
 def _normalize_edge_voice(voice: str | None) -> str:
@@ -98,56 +66,57 @@ def synthesize_to_file(
     """
     Generate speech into output_file and return the path.
 
-    The default provider is controlled by TTS_PROVIDER and defaults to qwen.
-    If Qwen fails or is not configured, Edge TTS is used as a fallback.
+    TTS_PROVIDER defaults to piper. If Piper is not configured or fails,
+    Edge TTS is used as a fallback so the assistant can still speak.
     """
-    provider = (provider or _env("TTS_PROVIDER", "qwen")).lower()
+    provider = (provider or _env("TTS_PROVIDER", "piper")).lower()
 
     if provider == "edge":
         _synthesize_edge(text, output_file, voice, rate)
         return output_file
 
     try:
-        _synthesize_qwen(text, output_file, voice)
+        _synthesize_piper(text, output_file)
         return output_file
     except Exception as exc:
-        print(f"[TTS] Qwen TTS failed, falling back to Edge TTS: {exc}")
+        print(f"[TTS] Piper TTS failed, falling back to Edge TTS: {exc}")
         _synthesize_edge(text, output_file, voice, rate)
         return output_file
 
 
-def _synthesize_qwen(text: str, output_file: str, voice: str | None = None) -> None:
-    api_key = _env("DASHSCOPE_API_KEY")
-    if not api_key:
-        raise RuntimeError("DASHSCOPE_API_KEY is not configured")
+def _synthesize_piper(text: str, output_file: str) -> None:
+    model_path = _env("PIPER_TTS_MODEL")
+    if not model_path:
+        raise RuntimeError("PIPER_TTS_MODEL is not configured")
 
-    try:
-        import dashscope
-    except ImportError as exc:
-        raise RuntimeError("dashscope SDK is not installed") from exc
+    command = _env("PIPER_TTS_COMMAND", "piper")
+    config_path = _env("PIPER_TTS_CONFIG")
 
-    dashscope.base_http_api_url = _env(
-        "DASHSCOPE_BASE_URL",
-        "https://dashscope-intl.aliyuncs.com/api/v1",
+    args = [
+        command,
+        "--model",
+        model_path,
+        "--output_file",
+        output_file,
+    ]
+
+    if config_path:
+        args.extend(["--config", config_path])
+
+    result = subprocess.run(
+        args,
+        input=text,
+        text=True,
+        capture_output=True,
+        timeout=120,
     )
 
-    response = dashscope.MultiModalConversation.call(
-        model=_env("QWEN_TTS_MODEL", "qwen3-tts-flash"),
-        api_key=api_key,
-        text=text,
-        voice=_normalize_qwen_voice(voice),
-        language_type=_env("QWEN_TTS_LANGUAGE_TYPE", "Portuguese"),
-        stream=False,
-    )
+    if result.returncode != 0:
+        error = result.stderr.strip() or result.stdout.strip() or f"exit code {result.returncode}"
+        raise RuntimeError(error)
 
-    audio_url = _get_nested(response, "output", "audio", "url")
-    if not audio_url:
-        code = _get_nested(response, "code") or _get_nested(response, "status_code")
-        message = _get_nested(response, "message") or response
-        raise RuntimeError(f"Qwen response did not include an audio URL: {code} {message}")
-
-    with urllib.request.urlopen(audio_url, timeout=60) as remote:
-        Path(output_file).write_bytes(remote.read())
+    if not os.path.exists(output_file) or os.path.getsize(output_file) == 0:
+        raise RuntimeError("Piper did not create an audio file")
 
 
 def _synthesize_edge(text: str, output_file: str, voice: str | None = None, rate: str = "+0%") -> None:
@@ -166,11 +135,11 @@ def _synthesize_edge(text: str, output_file: str, voice: str | None = None, rate
 
 
 class TextToSpeech:
-    VOICES = {**QWEN_VOICES, **EDGE_VOICES}
+    VOICES = {**PIPER_VOICES, **EDGE_VOICES}
 
     def __init__(
         self,
-        voice: str = "Cherry",
+        voice: str = "piper",
         rate: str = "+0%",
         volume: str = "+0%",
         provider: str | None = None,
@@ -178,7 +147,7 @@ class TextToSpeech:
         self.voice = voice
         self.rate = rate
         self.volume = volume
-        self.provider = provider or _env("TTS_PROVIDER", "qwen")
+        self.provider = provider or _env("TTS_PROVIDER", "piper")
         self._lock = threading.Lock()
         self.temp_dir = tempfile.gettempdir()
 
@@ -192,7 +161,7 @@ class TextToSpeech:
 
     def _speak_sync(self, text: str):
         with self._lock:
-            temp_file = os.path.join(self.temp_dir, f"sara_speech_{uuid.uuid4().hex[:8]}.mp3")
+            temp_file = os.path.join(self.temp_dir, f"sara_speech_{uuid.uuid4().hex[:8]}.wav")
             try:
                 synthesize_to_file(
                     text=text,
@@ -229,14 +198,14 @@ class TextToSpeech:
 
         try:
             if os.name == "nt":
-                import subprocess
-                subprocess.run(
+                import subprocess as _subprocess
+                _subprocess.run(
                     ["powershell", "-c", f'(New-Object Media.SoundPlayer "{file_path}").PlaySync()'],
                     capture_output=True,
                     timeout=30,
                 )
             else:
-                os.system(f'mpg123 "{file_path}" 2>/dev/null || afplay "{file_path}" 2>/dev/null')
+                os.system(f'aplay "{file_path}" 2>/dev/null || afplay "{file_path}" 2>/dev/null')
         except Exception:
             print("[TTS] Could not play audio")
 
@@ -255,7 +224,7 @@ class TextToSpeech:
         return cls.VOICES
 
 
-def quick_speak(text: str, voice: str = "Cherry"):
+def quick_speak(text: str, voice: str = "piper"):
     tts = TextToSpeech(voice=voice)
     tts.speak(text)
 

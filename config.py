@@ -17,7 +17,6 @@ ASSETS_DIR = BASE_DIR / "assets"
 
 # API Keys (configure via variáveis de ambiente)
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-DASHSCOPE_API_KEY = os.getenv("DASHSCOPE_API_KEY", "")
 
 # Configurações do Pet
 PET_CONFIG = {
@@ -32,10 +31,10 @@ PET_CONFIG = {
 
 # Configurações de voz
 VOICE_CONFIG = {
-    "provider": os.getenv("TTS_PROVIDER", "qwen"),
-    "qwen_model": os.getenv("QWEN_TTS_MODEL", "qwen3-tts-flash"),
-    "qwen_voice": os.getenv("QWEN_TTS_VOICE", "Cherry"),
-    "qwen_language_type": os.getenv("QWEN_TTS_LANGUAGE_TYPE", "Portuguese"),
+    "provider": os.getenv("TTS_PROVIDER", "piper"),
+    "piper_command": os.getenv("PIPER_TTS_COMMAND", "piper"),
+    "piper_model": os.getenv("PIPER_TTS_MODEL", ""),
+    "piper_config": os.getenv("PIPER_TTS_CONFIG", ""),
     "rate": 180,      # Velocidade da fala
     "volume": 0.9,    # Volume (0.0 a 1.0)
     "language": "pt-BR",

@@ -11,7 +11,7 @@ O projeto foi desenvolvido com ajuda de IA e pode conter erros, limitacoes ou co
 - Conversa por texto com historico local.
 - Comandos por voz usando microfone.
 - Respostas por voz com sintese de fala.
-- Qwen TTS como provedor de voz padrao, com Edge TTS como fallback.
+- Piper TTS como provedor local de voz padrao, com Edge TTS como fallback.
 - Integracao com Groq para respostas de IA.
 - Analise simples de humor da conversa.
 - Memoria local para preferencias, notas e conversas.
@@ -23,7 +23,7 @@ O projeto foi desenvolvido com ajuda de IA e pode conter erros, limitacoes ou co
 - Python 3.9 ou superior.
 - Microfone, para comandos de voz.
 - Chave de API da Groq, para respostas de IA.
-- Chave de API da DashScope, para Qwen TTS.
+- Piper TTS instalado localmente, para geracao de voz offline.
 
 ## Instalacao
 
@@ -58,17 +58,16 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-4. Configure as chaves de API.
+4. Configure a chave de API e o TTS local.
 
 Copie o arquivo `.env.example` para `.env` e preencha sua chave:
 
 ```env
 GROQ_API_KEY=sua_chave_aqui
-DASHSCOPE_API_KEY=sua_chave_dashscope_aqui
-TTS_PROVIDER=qwen
-QWEN_TTS_MODEL=qwen3-tts-flash
-QWEN_TTS_VOICE=Cherry
-QWEN_TTS_LANGUAGE_TYPE=Portuguese
+TTS_PROVIDER=piper
+PIPER_TTS_COMMAND=piper
+PIPER_TTS_MODEL=caminho/para/seu/modelo-piper.onnx
+PIPER_TTS_CONFIG=caminho/para/seu/modelo-piper.onnx.json
 ```
 
 Ou configure a variavel de ambiente:
@@ -77,14 +76,18 @@ Windows PowerShell:
 
 ```powershell
 $env:GROQ_API_KEY = "sua_chave_aqui"
-$env:DASHSCOPE_API_KEY = "sua_chave_dashscope_aqui"
+$env:TTS_PROVIDER = "piper"
+$env:PIPER_TTS_MODEL = "caminho\para\seu\modelo-piper.onnx"
+$env:PIPER_TTS_CONFIG = "caminho\para\seu\modelo-piper.onnx.json"
 ```
 
 Linux/macOS:
 
 ```bash
 export GROQ_API_KEY="sua_chave_aqui"
-export DASHSCOPE_API_KEY="sua_chave_dashscope_aqui"
+export TTS_PROVIDER="piper"
+export PIPER_TTS_MODEL="caminho/para/seu/modelo-piper.onnx"
+export PIPER_TTS_CONFIG="caminho/para/seu/modelo-piper.onnx.json"
 ```
 
 5. Execute o aplicativo:

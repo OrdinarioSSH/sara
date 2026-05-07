@@ -13,7 +13,7 @@ Portuguese documentation is available in [README_ptbr.md](README_ptbr.md).
 - Text chat with local conversation history.
 - Voice commands through a microphone.
 - Spoken responses with text-to-speech.
-- Qwen TTS as the default speech provider, with Edge TTS as fallback.
+- Piper TTS as the default local speech provider, with Edge TTS as fallback.
 - Groq integration for AI responses.
 - Simple mood analysis based on the conversation.
 - Local memory for preferences, notes, and conversations.
@@ -25,7 +25,7 @@ Portuguese documentation is available in [README_ptbr.md](README_ptbr.md).
 - Python 3.9 or later.
 - Microphone, for voice commands.
 - Groq API key, for AI responses.
-- DashScope API key, for Qwen TTS.
+- Piper TTS installed locally, for offline speech generation.
 
 ## Installation
 
@@ -60,17 +60,16 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-4. Configure your API keys.
+4. Configure your API key and local TTS.
 
 Copy `.env.example` to `.env` and add your key:
 
 ```env
 GROQ_API_KEY=your_key_here
-DASHSCOPE_API_KEY=your_dashscope_key_here
-TTS_PROVIDER=qwen
-QWEN_TTS_MODEL=qwen3-tts-flash
-QWEN_TTS_VOICE=Cherry
-QWEN_TTS_LANGUAGE_TYPE=Portuguese
+TTS_PROVIDER=piper
+PIPER_TTS_COMMAND=piper
+PIPER_TTS_MODEL=path/to/your/piper-model.onnx
+PIPER_TTS_CONFIG=path/to/your/piper-model.onnx.json
 ```
 
 Or set it as an environment variable:
@@ -79,14 +78,18 @@ Windows PowerShell:
 
 ```powershell
 $env:GROQ_API_KEY = "your_key_here"
-$env:DASHSCOPE_API_KEY = "your_dashscope_key_here"
+$env:TTS_PROVIDER = "piper"
+$env:PIPER_TTS_MODEL = "path\to\your\piper-model.onnx"
+$env:PIPER_TTS_CONFIG = "path\to\your\piper-model.onnx.json"
 ```
 
 Linux/macOS:
 
 ```bash
 export GROQ_API_KEY="your_key_here"
-export DASHSCOPE_API_KEY="your_dashscope_key_here"
+export TTS_PROVIDER="piper"
+export PIPER_TTS_MODEL="path/to/your/piper-model.onnx"
+export PIPER_TTS_CONFIG="path/to/your/piper-model.onnx.json"
 ```
 
 5. Run the application:

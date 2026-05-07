@@ -7,8 +7,7 @@ pillow>=10.0.0
 # AI (Groq - GRATUITO!)
 groq>=0.4.0
 
-# Text-to-Speech (Vozes neurais)
-dashscope>=1.24.6
+# Text-to-Speech
 edge-tts>=6.1.0
 pygame>=2.5.0
 

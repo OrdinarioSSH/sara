@@ -39,7 +39,7 @@ try:
     HAS_TTS = True
 except ImportError:
     HAS_TTS = False
-    print("[SARA] TTS indisponivel. Instale: pip install dashscope edge-tts pygame")
+    print("[SARA] TTS indisponivel. Instale: pip install edge-tts pygame")
 
 # --- Módulo STT ---
 try:
@@ -184,7 +184,7 @@ class TTSThread(QThread):
     speaking_started = pyqtSignal(object)  # Emite AudioAmplitudeExtractor para o HUD
     speaking_stopped = pyqtSignal()
 
-    def __init__(self, text, voice="Cherry", speed=1.0):
+    def __init__(self, text, voice="piper", speed=1.0):
         super().__init__()
         self.text = _clean_for_tts(text)
         self.voice = voice
@@ -407,7 +407,7 @@ class VoiceResponseThread(QThread):
     memory_extracted = pyqtSignal(str)
     speaking_started = pyqtSignal(object)  # AudioAmplitudeExtractor para HUD
 
-    def __init__(self, client, command, voice="Cherry", speed=1.0, memory_manager=None):
+    def __init__(self, client, command, voice="piper", speed=1.0, memory_manager=None):
         super().__init__()
         self.client = client
         self.command = command
@@ -728,7 +728,7 @@ class ChatWindow(QDialog):
         self.setFixedSize(450, 500)
         self.pending_image = None
         self.tts_enabled = True
-        self.tts_voice = "Cherry"
+        self.tts_voice = "piper"
         self.tts_speed = 1.0
 
         if self.memory:
@@ -1103,12 +1103,7 @@ class SettingsWindow(QDialog):
         self.voice_combo = QComboBox()
         # Mapa ordenado: display name → voice ID
         self._voice_options = [
-            ("Qwen Cherry", "Cherry"),
-            ("Qwen Seren", "Seren"),
-            ("Qwen Mia", "Mia"),
-            ("Qwen Stella", "Stella"),
-            ("Qwen Neil", "Neil"),
-            ("Qwen Kai", "Kai"),
+            ("Piper Local", "piper"),
             ("Edge Francisca (BR)", "pt-BR-FranciscaNeural"),
             ("Edge Antonio (BR)", "pt-BR-AntonioNeural"),
         ]
@@ -1282,7 +1277,7 @@ class SettingsWindow(QDialog):
         idx = self.voice_combo.currentIndex()
         if 0 <= idx < len(self._voice_options):
             return self._voice_options[idx][1]
-        return "Cherry"
+        return "piper"
 
     def save_and_accept(self):
         """Salva configurações e fecha"""
@@ -1562,7 +1557,7 @@ class VirtualPet(QWidget):
             self.tts_voice = self.memory.preferences.tts_voice
             self.tts_speed = self.memory.preferences.tts_speed
         else:
-            self.tts_voice = "Cherry"
+            self.tts_voice = "piper"
             self.tts_speed = 1.0
 
         # Variáveis de Estado

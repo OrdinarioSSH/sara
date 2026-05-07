@@ -36,7 +36,7 @@ class UserPreferences:
     """Preferências do usuário"""
     # Voz
     tts_enabled: bool = True
-    tts_voice: str = "Cherry"
+    tts_voice: str = "piper"
     tts_speed: float = 1.0
 
     # Proatividade
