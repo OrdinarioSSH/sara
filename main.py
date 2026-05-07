@@ -31,16 +31,15 @@ except ImportError:
 
 # --- Módulo TTS ---
 try:
-    import edge_tts
-    import asyncio
     import tempfile
     import uuid
     import pygame
+    from modules.text_to_speech import synthesize_to_file
     pygame.mixer.init()
     HAS_TTS = True
 except ImportError:
     HAS_TTS = False
-    print("[SARA] TTS indisponível. Instale: pip install edge-tts pygame")
+    print("[SARA] TTS indisponivel. Instale: pip install dashscope edge-tts pygame")
 
 # --- Módulo STT ---
 try:
@@ -185,7 +184,7 @@ class TTSThread(QThread):
     speaking_started = pyqtSignal(object)  # Emite AudioAmplitudeExtractor para o HUD
     speaking_stopped = pyqtSignal()
 
-    def __init__(self, text, voice="pt-BR-FranciscaNeural", speed=1.0):
+    def __init__(self, text, voice="Cherry", speed=1.0):
         super().__init__()
         self.text = _clean_for_tts(text)
         self.voice = voice
@@ -198,7 +197,7 @@ class TTSThread(QThread):
         try:
             temp_file = os.path.join(tempfile.gettempdir(), f"sara_speech_{uuid.uuid4().hex[:8]}.mp3")
             rate = f"+{int((self.speed - 1) * 100)}%" if self.speed >= 1 else f"{int((self.speed - 1) * 100)}%"
-            asyncio.run(self._generate(temp_file, rate))
+            synthesize_to_file(self.text, temp_file, voice=self.voice, rate=rate)
 
             # Usa Sound + Channel para ter acesso ao PCM raw (visualizador)
             sound = pygame.mixer.Sound(temp_file)
@@ -223,11 +222,6 @@ class TTSThread(QThread):
         except Exception as e:
             print(f"Erro TTS: {e}")
         self.finished.emit()
-
-    async def _generate(self, output_file, rate):
-        communicate = edge_tts.Communicate(text=self.text, voice=self.voice, rate=rate)
-        await communicate.save(output_file)
-
 
 def _transcribe_audio(audio_data, groq_client=None):
     """Transcreve áudio usando Groq Whisper (preciso) ou Google Speech (fallback).
@@ -413,7 +407,7 @@ class VoiceResponseThread(QThread):
     memory_extracted = pyqtSignal(str)
     speaking_started = pyqtSignal(object)  # AudioAmplitudeExtractor para HUD
 
-    def __init__(self, client, command, voice="pt-BR-FranciscaNeural", speed=1.0, memory_manager=None):
+    def __init__(self, client, command, voice="Cherry", speed=1.0, memory_manager=None):
         super().__init__()
         self.client = client
         self.command = command
@@ -595,7 +589,7 @@ class VoiceResponseThread(QThread):
     def _generate_audio_file(self, text, rate):
         """Gera arquivo MP3 do TTS e retorna o path."""
         temp_file = os.path.join(tempfile.gettempdir(), f"sara_voice_{uuid.uuid4().hex[:8]}.mp3")
-        asyncio.run(self._generate_speech(temp_file, text, rate))
+        synthesize_to_file(text, temp_file, voice=self.voice, rate=rate)
         return temp_file
 
     def _speak_block(self, text, rate):
@@ -614,11 +608,6 @@ class VoiceResponseThread(QThread):
                 pass
         except Exception as e:
             print(f"[TTS] Erro ao falar bloco: {e}")
-
-    async def _generate_speech(self, output_file, text, rate):
-        communicate = edge_tts.Communicate(text=text, voice=self.voice, rate=rate)
-        await communicate.save(output_file)
-
 
 class ChatThread(QThread):
     """Thread para requisições à API"""
@@ -739,7 +728,7 @@ class ChatWindow(QDialog):
         self.setFixedSize(450, 500)
         self.pending_image = None
         self.tts_enabled = True
-        self.tts_voice = "pt-BR-FranciscaNeural"
+        self.tts_voice = "Cherry"
         self.tts_speed = 1.0
 
         if self.memory:
@@ -1114,14 +1103,14 @@ class SettingsWindow(QDialog):
         self.voice_combo = QComboBox()
         # Mapa ordenado: display name → voice ID
         self._voice_options = [
-            ("Francisca — Feminina (BR)", "pt-BR-FranciscaNeural"),
-            ("Antonio — Masculino (BR)", "pt-BR-AntonioNeural"),
-            ("Thalita — Feminina Jovem (BR)", "pt-BR-ThalitaNeural"),
-            ("Macerio — Masculino (BR)", "pt-BR-MacerioNeural"),
-            ("Leila — Feminina (BR)", "pt-BR-LeilaNeural"),
-            ("Donato — Masculino (BR)", "pt-BR-DonatoNeural"),
-            ("Raquel — Feminina (Portugal)", "pt-PT-RaquelNeural"),
-            ("Duarte — Masculino (Portugal)", "pt-PT-DuarteNeural"),
+            ("Qwen Cherry", "Cherry"),
+            ("Qwen Seren", "Seren"),
+            ("Qwen Mia", "Mia"),
+            ("Qwen Stella", "Stella"),
+            ("Qwen Neil", "Neil"),
+            ("Qwen Kai", "Kai"),
+            ("Edge Francisca (BR)", "pt-BR-FranciscaNeural"),
+            ("Edge Antonio (BR)", "pt-BR-AntonioNeural"),
         ]
         for display_name, _ in self._voice_options:
             self.voice_combo.addItem(display_name)
@@ -1293,7 +1282,7 @@ class SettingsWindow(QDialog):
         idx = self.voice_combo.currentIndex()
         if 0 <= idx < len(self._voice_options):
             return self._voice_options[idx][1]
-        return "pt-BR-FranciscaNeural"
+        return "Cherry"
 
     def save_and_accept(self):
         """Salva configurações e fecha"""
@@ -1573,7 +1562,7 @@ class VirtualPet(QWidget):
             self.tts_voice = self.memory.preferences.tts_voice
             self.tts_speed = self.memory.preferences.tts_speed
         else:
-            self.tts_voice = "pt-BR-FranciscaNeural"
+            self.tts_voice = "Cherry"
             self.tts_speed = 1.0
 
         # Variáveis de Estado

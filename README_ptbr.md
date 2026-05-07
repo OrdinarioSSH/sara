@@ -11,6 +11,7 @@ O projeto foi desenvolvido com ajuda de IA e pode conter erros, limitacoes ou co
 - Conversa por texto com historico local.
 - Comandos por voz usando microfone.
 - Respostas por voz com sintese de fala.
+- Qwen TTS como provedor de voz padrao, com Edge TTS como fallback.
 - Integracao com Groq para respostas de IA.
 - Analise simples de humor da conversa.
 - Memoria local para preferencias, notas e conversas.
@@ -22,6 +23,7 @@ O projeto foi desenvolvido com ajuda de IA e pode conter erros, limitacoes ou co
 - Python 3.9 ou superior.
 - Microfone, para comandos de voz.
 - Chave de API da Groq, para respostas de IA.
+- Chave de API da DashScope, para Qwen TTS.
 
 ## Instalacao
 
@@ -56,12 +58,17 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-4. Configure a chave da Groq.
+4. Configure as chaves de API.
 
 Copie o arquivo `.env.example` para `.env` e preencha sua chave:
 
 ```env
 GROQ_API_KEY=sua_chave_aqui
+DASHSCOPE_API_KEY=sua_chave_dashscope_aqui
+TTS_PROVIDER=qwen
+QWEN_TTS_MODEL=qwen3-tts-flash
+QWEN_TTS_VOICE=Cherry
+QWEN_TTS_LANGUAGE_TYPE=Portuguese
 ```
 
 Ou configure a variavel de ambiente:
@@ -70,12 +77,14 @@ Windows PowerShell:
 
 ```powershell
 $env:GROQ_API_KEY = "sua_chave_aqui"
+$env:DASHSCOPE_API_KEY = "sua_chave_dashscope_aqui"
 ```
 
 Linux/macOS:
 
 ```bash
 export GROQ_API_KEY="sua_chave_aqui"
+export DASHSCOPE_API_KEY="sua_chave_dashscope_aqui"
 ```
 
 5. Execute o aplicativo:

@@ -13,6 +13,7 @@ Portuguese documentation is available in [README_ptbr.md](README_ptbr.md).
 - Text chat with local conversation history.
 - Voice commands through a microphone.
 - Spoken responses with text-to-speech.
+- Qwen TTS as the default speech provider, with Edge TTS as fallback.
 - Groq integration for AI responses.
 - Simple mood analysis based on the conversation.
 - Local memory for preferences, notes, and conversations.
@@ -24,6 +25,7 @@ Portuguese documentation is available in [README_ptbr.md](README_ptbr.md).
 - Python 3.9 or later.
 - Microphone, for voice commands.
 - Groq API key, for AI responses.
+- DashScope API key, for Qwen TTS.
 
 ## Installation
 
@@ -58,12 +60,17 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-4. Configure your Groq API key.
+4. Configure your API keys.
 
 Copy `.env.example` to `.env` and add your key:
 
 ```env
 GROQ_API_KEY=your_key_here
+DASHSCOPE_API_KEY=your_dashscope_key_here
+TTS_PROVIDER=qwen
+QWEN_TTS_MODEL=qwen3-tts-flash
+QWEN_TTS_VOICE=Cherry
+QWEN_TTS_LANGUAGE_TYPE=Portuguese
 ```
 
 Or set it as an environment variable:
@@ -72,12 +79,14 @@ Windows PowerShell:
 
 ```powershell
 $env:GROQ_API_KEY = "your_key_here"
+$env:DASHSCOPE_API_KEY = "your_dashscope_key_here"
 ```
 
 Linux/macOS:
 
 ```bash
 export GROQ_API_KEY="your_key_here"
+export DASHSCOPE_API_KEY="your_dashscope_key_here"
 ```
 
 5. Run the application:

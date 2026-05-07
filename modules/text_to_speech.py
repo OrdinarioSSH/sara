@@ -1,167 +1,266 @@
 """
-Módulo de Text-to-Speech (Texto para Fala)
-Usa Edge TTS (Microsoft) - Vozes neurais de alta qualidade GRATUITAS
-"""
-import edge_tts
-import asyncio
-import threading
-import tempfile
-import os
+Text-to-speech adapter for SARA.
 
-# Tenta importar pygame para reprodução de áudio
+Default provider: Qwen TTS through Alibaba Cloud Model Studio / DashScope.
+Fallback provider: Microsoft Edge TTS, kept as a local compatibility option.
+"""
+from __future__ import annotations
+
+import asyncio
+import os
+import tempfile
+import threading
+import urllib.request
+import uuid
+from pathlib import Path
+from typing import Any
+
+try:
+    import edge_tts
+except ImportError:
+    edge_tts = None
+
 try:
     import pygame
     pygame.mixer.init()
     HAS_PYGAME = True
 except ImportError:
     HAS_PYGAME = False
-    print("[TTS] pygame não encontrado. Instale com: pip install pygame")
+    print("[TTS] pygame not found. Install it with: pip install pygame")
+
+
+EDGE_VOICES = {
+    "francisca": "pt-BR-FranciscaNeural",
+    "antonio": "pt-BR-AntonioNeural",
+    "thalita": "pt-BR-ThalitaNeural",
+    "macerio": "pt-BR-MacerioNeural",
+    "leila": "pt-BR-LeilaNeural",
+    "donato": "pt-BR-DonatoNeural",
+}
+
+QWEN_VOICES = {
+    "cherry": "Cherry",
+    "seren": "Seren",
+    "mia": "Mia",
+    "stella": "Stella",
+    "neil": "Neil",
+    "kai": "Kai",
+    "ryan": "Ryan",
+    "andre": "Andre",
+}
+
+
+def _env(name: str, default: str = "") -> str:
+    return os.getenv(name, default).strip()
+
+
+def _get_nested(value: Any, *keys: str) -> Any:
+    current = value
+    for key in keys:
+        if current is None:
+            return None
+        if isinstance(current, dict):
+            current = current.get(key)
+        else:
+            current = getattr(current, key, None)
+    return current
+
+
+def _normalize_qwen_voice(voice: str | None) -> str:
+    if not voice:
+        return _env("QWEN_TTS_VOICE", "Cherry")
+
+    voice = voice.strip()
+    if voice in QWEN_VOICES.values():
+        return voice
+
+    return QWEN_VOICES.get(voice.lower(), _env("QWEN_TTS_VOICE", "Cherry"))
+
+
+def _normalize_edge_voice(voice: str | None) -> str:
+    if not voice:
+        return EDGE_VOICES["francisca"]
+
+    voice = voice.strip()
+    if voice in EDGE_VOICES.values():
+        return voice
+
+    return EDGE_VOICES.get(voice.lower(), EDGE_VOICES["francisca"])
+
+
+def synthesize_to_file(
+    text: str,
+    output_file: str,
+    voice: str | None = None,
+    rate: str = "+0%",
+    provider: str | None = None,
+) -> str:
+    """
+    Generate speech into output_file and return the path.
+
+    The default provider is controlled by TTS_PROVIDER and defaults to qwen.
+    If Qwen fails or is not configured, Edge TTS is used as a fallback.
+    """
+    provider = (provider or _env("TTS_PROVIDER", "qwen")).lower()
+
+    if provider == "edge":
+        _synthesize_edge(text, output_file, voice, rate)
+        return output_file
+
+    try:
+        _synthesize_qwen(text, output_file, voice)
+        return output_file
+    except Exception as exc:
+        print(f"[TTS] Qwen TTS failed, falling back to Edge TTS: {exc}")
+        _synthesize_edge(text, output_file, voice, rate)
+        return output_file
+
+
+def _synthesize_qwen(text: str, output_file: str, voice: str | None = None) -> None:
+    api_key = _env("DASHSCOPE_API_KEY")
+    if not api_key:
+        raise RuntimeError("DASHSCOPE_API_KEY is not configured")
+
+    try:
+        import dashscope
+    except ImportError as exc:
+        raise RuntimeError("dashscope SDK is not installed") from exc
+
+    dashscope.base_http_api_url = _env(
+        "DASHSCOPE_BASE_URL",
+        "https://dashscope-intl.aliyuncs.com/api/v1",
+    )
+
+    response = dashscope.MultiModalConversation.call(
+        model=_env("QWEN_TTS_MODEL", "qwen3-tts-flash"),
+        api_key=api_key,
+        text=text,
+        voice=_normalize_qwen_voice(voice),
+        language_type=_env("QWEN_TTS_LANGUAGE_TYPE", "Portuguese"),
+        stream=False,
+    )
+
+    audio_url = _get_nested(response, "output", "audio", "url")
+    if not audio_url:
+        code = _get_nested(response, "code") or _get_nested(response, "status_code")
+        message = _get_nested(response, "message") or response
+        raise RuntimeError(f"Qwen response did not include an audio URL: {code} {message}")
+
+    with urllib.request.urlopen(audio_url, timeout=60) as remote:
+        Path(output_file).write_bytes(remote.read())
+
+
+def _synthesize_edge(text: str, output_file: str, voice: str | None = None, rate: str = "+0%") -> None:
+    if edge_tts is None:
+        raise RuntimeError("edge-tts is not installed")
+
+    async def _run() -> None:
+        communicate = edge_tts.Communicate(
+            text=text,
+            voice=_normalize_edge_voice(voice),
+            rate=rate,
+        )
+        await communicate.save(output_file)
+
+    asyncio.run(_run())
 
 
 class TextToSpeech:
-    # Vozes disponíveis em português brasileiro (Neural - alta qualidade)
-    VOICES = {
-        "francisca": "pt-BR-FranciscaNeural",  # Feminina - muito natural
-        "antonio": "pt-BR-AntonioNeural",      # Masculina - muito natural
-        "thalita": "pt-BR-ThalitaNeural",      # Feminina - jovem
-        "macerio": "pt-BR-MacerioNeural",      # Masculina
-        "leila": "pt-BR-LeilaNeural",          # Feminina
-        "donato": "pt-BR-DonatoNeural",        # Masculina
-    }
-    
-    def __init__(self, voice: str = "francisca", rate: str = "+0%", volume: str = "+0%"):
-        """
-        Inicializa o módulo de síntese de voz com Edge TTS.
-        
-        Args:
-            voice: Nome da voz (francisca, antonio, thalita, macerio, leila, donato)
-            rate: Velocidade da fala (ex: "+10%", "-20%", "+0%")
-            volume: Volume (ex: "+10%", "-20%", "+0%")
-        """
-        self.voice = self.VOICES.get(voice.lower(), self.VOICES["francisca"])
+    VOICES = {**QWEN_VOICES, **EDGE_VOICES}
+
+    def __init__(
+        self,
+        voice: str = "Cherry",
+        rate: str = "+0%",
+        volume: str = "+0%",
+        provider: str | None = None,
+    ):
+        self.voice = voice
         self.rate = rate
         self.volume = volume
+        self.provider = provider or _env("TTS_PROVIDER", "qwen")
         self._lock = threading.Lock()
-        
-        # Diretório temporário para arquivos de áudio
         self.temp_dir = tempfile.gettempdir()
-        
-        print(f"[TTS] Voz selecionada: {self.voice}")
-    
+
+        print(f"[TTS] Provider: {self.provider}; voice: {self.voice}")
+
     def speak(self, text: str, block: bool = True):
-        """
-        Fala o texto fornecido.
-        
-        Args:
-            text: Texto para ser falado
-            block: Se True, bloqueia até terminar de falar
-        """
         if block:
             self._speak_sync(text)
         else:
             threading.Thread(target=self._speak_sync, args=(text,), daemon=True).start()
-    
+
     def _speak_sync(self, text: str):
-        """Fala de forma síncrona."""
         with self._lock:
+            temp_file = os.path.join(self.temp_dir, f"sara_speech_{uuid.uuid4().hex[:8]}.mp3")
             try:
-                # Cria arquivo temporário com nome único
-                import uuid
-                temp_file = os.path.join(self.temp_dir, f"buddy_speech_{uuid.uuid4().hex[:8]}.mp3")
-                
-                # Gera áudio com Edge TTS
-                asyncio.run(self._generate_audio(text, temp_file))
-                
-                # Reproduz o áudio
+                synthesize_to_file(
+                    text=text,
+                    output_file=temp_file,
+                    voice=self.voice,
+                    rate=self.rate,
+                    provider=self.provider,
+                )
                 self._play_audio(temp_file)
-                
-                # Remove arquivo temporário (com delay para garantir que terminou)
+            except Exception as exc:
+                print(f"[TTS] Error: {exc}")
+            finally:
                 try:
-                    import time
-                    time.sleep(0.2)
                     if os.path.exists(temp_file):
                         os.remove(temp_file)
-                except:
+                except OSError:
                     pass
-                    
-            except Exception as e:
-                print(f"Erro no TTS: {e}")
-    
-    async def _generate_audio(self, text: str, output_file: str):
-        """Gera áudio usando Edge TTS."""
-        communicate = edge_tts.Communicate(
-            text=text,
-            voice=self.voice,
-            rate=self.rate,
-            volume=self.volume
-        )
-        await communicate.save(output_file)
-    
+
     def _play_audio(self, file_path: str):
-        """Reproduz arquivo de áudio."""
         if HAS_PYGAME:
             try:
                 pygame.mixer.music.load(file_path)
                 pygame.mixer.music.play()
                 while pygame.mixer.music.get_busy():
                     pygame.time.wait(100)
-                pygame.mixer.music.unload()  # Libera o arquivo
-            except Exception as e:
-                print(f"Erro ao reproduzir áudio: {e}")
+                pygame.mixer.music.unload()
+                return
+            except Exception as exc:
+                print(f"[TTS] pygame playback failed: {exc}")
                 try:
                     pygame.mixer.music.unload()
-                except:
+                except Exception:
                     pass
-        else:
-            # Fallback: tenta usar player do sistema
-            try:
-                if os.name == 'nt':  # Windows
-                    import subprocess
-                    subprocess.run(['powershell', '-c', f'(New-Object Media.SoundPlayer "{file_path}").PlaySync()'], 
-                                 capture_output=True, timeout=30)
-                else:
-                    os.system(f'mpg123 "{file_path}" 2>/dev/null || afplay "{file_path}" 2>/dev/null')
-            except:
-                print("Não foi possível reproduzir o áudio")
-    
+
+        try:
+            if os.name == "nt":
+                import subprocess
+                subprocess.run(
+                    ["powershell", "-c", f'(New-Object Media.SoundPlayer "{file_path}").PlaySync()'],
+                    capture_output=True,
+                    timeout=30,
+                )
+            else:
+                os.system(f'mpg123 "{file_path}" 2>/dev/null || afplay "{file_path}" 2>/dev/null')
+        except Exception:
+            print("[TTS] Could not play audio")
+
     def set_voice(self, voice: str):
-        """Muda a voz."""
-        if voice.lower() in self.VOICES:
-            self.voice = self.VOICES[voice.lower()]
-            print(f"[TTS] Voz alterada: {self.voice}")
-        else:
-            print(f"Voz '{voice}' não encontrada. Opções: {list(self.VOICES.keys())}")
-    
+        self.voice = voice
+        print(f"[TTS] Voice changed: {self.voice}")
+
     def set_rate(self, rate: str):
-        """Define velocidade (ex: '+10%', '-20%')."""
         self.rate = rate
-    
+
     def set_volume(self, volume: str):
-        """Define volume (ex: '+10%', '-20%')."""
         self.volume = volume
-    
+
     @classmethod
     def list_voices(cls) -> dict:
-        """Lista vozes disponíveis."""
         return cls.VOICES
 
 
-# Função de conveniência
-def quick_speak(text: str, voice: str = "francisca"):
-    """Fala rapidamente um texto."""
+def quick_speak(text: str, voice: str = "Cherry"):
     tts = TextToSpeech(voice=voice)
     tts.speak(text)
 
 
 if __name__ == "__main__":
-    # Teste do módulo
-    print("Testando Edge TTS...")
-    print(f"Vozes disponíveis: {TextToSpeech.list_voices()}")
-    
-    tts = TextToSpeech(voice="francisca")
-    tts.speak("SARA operacional. Protocolo A.T.L.A.S. ativo.")
-    
-    tts.set_voice("antonio")
-    tts.speak("Voz alternativa ativa.")
-    
-    print("[TTS] Teste concluído.")
+    print("Testing TTS...")
+    print(f"Available voices: {TextToSpeech.list_voices()}")
+    quick_speak("SARA operational.")
